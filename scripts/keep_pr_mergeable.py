@@ -25,6 +25,8 @@ FILE = os.environ["TARGET_FILE"]
 MARKER = os.environ["MARKER"]              # plugin name or row prefix
 AFTER = os.environ.get("AFTER_CMDS", "")   # commands run after editing, ";"-separated
 TABLE_HEADER = os.environ.get("TABLE_HEADER", "| Name |")
+FORCE = os.environ.get("FORCE") == "1"        # rebuild even without a conflict
+DRY_RUN = os.environ.get("DRY_RUN") == "1"    # build the commit, do not push
 
 
 def sh(*args, capture=False):
@@ -106,13 +108,14 @@ def main():
     if status["state"] != "open":
         print("PR is not open; nothing to do.")
         return
-    if status.get("mergeable") is not False:
+    if status.get("mergeable") is not False and not FORCE:
         print("No conflict; nothing to do.")
         return
 
     ours = extract(open(FILE, encoding="utf-8").read())
     base = status["base"]["ref"]
-    sh("git", "remote", "add", "upstream", f"https://github.com/{UPSTREAM}.git")
+    if "upstream" not in sh("git", "remote", capture=True).split():
+        sh("git", "remote", "add", "upstream", f"https://github.com/{UPSTREAM}.git")
     sh("git", "fetch", "--no-tags", "upstream", base)
     sh("git", "reset", "--hard", f"upstream/{base}")
 
@@ -133,6 +136,9 @@ def main():
     sh("git", "add", "-A")
     title = subprocess.check_output(["git", "log", "-1", "--format=%B", f"origin/{BRANCH}"], text=True).strip()
     sh("git", "commit", "-m", title)
+    if DRY_RUN:
+        print("DRY_RUN: not pushing.")
+        return
     sh("git", "push", f"--force-with-lease={BRANCH}:origin/{BRANCH}", "origin", f"HEAD:{BRANCH}")
     print("Branch rebuilt on upstream and pushed.")
 

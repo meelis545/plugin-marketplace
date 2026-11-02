@@ -7,3 +7,7 @@ branch with only the QQQ entry added again and force-pushes it.
 
 The fork's `main` mirrors upstream and is not used. Run by hand: Actions →
 "Keep QQQ listing PR mergeable" → Run workflow.
+
+Local test without pushing: set `FORCE=1 DRY_RUN=1` with the same environment
+variables as the workflow and run `scripts/keep_pr_mergeable.py` inside a clone
+of the PR branch.
