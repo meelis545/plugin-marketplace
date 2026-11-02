@@ -1,0 +1,50 @@
+# Keeps the QQQ listing PR in xai-org/plugin-marketplace free of merge conflicts.
+# Lives on this fork's default branch (qqq-automation) only, so the
+# upstream workflows on main never run here on a schedule.
+name: Keep QQQ listing PR mergeable
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keep-pr-mergeable
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout automation
+        uses: actions/checkout@v4
+        with:
+          path: automation
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: add-qqq-ai-visibility
+          fetch-depth: 0
+          path: repo
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Rebuild on upstream if the PR conflicts
+        working-directory: repo
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM: xai-org/plugin-marketplace
+          PR_NUMBER: "1546"
+          PR_BRANCH: add-qqq-ai-visibility
+          MODE: json-append
+          TARGET_FILE: .grok-plugin/marketplace.json
+          MARKER: "qqq-ai-visibility"
+          AFTER_CMDS: "python3 scripts/generate-plugin-index.py; python3 scripts/validate-catalog.py"
+        run: |
+          git config user.name "meelis545"
+          git config user.email "52959374+meelis545@users.noreply.github.com"
+          python3 ../automation/scripts/keep_pr_mergeable.py
